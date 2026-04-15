@@ -1,0 +1,17 @@
+# Embedded git metadata backups created for monorepo push prep
+**/.git.bak_for_monorepo_push
+**/.git.bak_for_monorepo_push/**
+
+# Python/cache artifacts
+**/__pycache__/
+*.pyc
+
+# Local archives/checkpoints and heavy generated data
+*.zip
+*.pt
+ArtRig/inputs/
+ArtRig/outputs/
+DA3_SAM3/inputs/
+DA3_SAM3/outputs/
+Sapien/assets/
+Sapien/output/

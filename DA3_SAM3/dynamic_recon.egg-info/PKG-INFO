@@ -1,0 +1,139 @@
+Metadata-Version: 2.4
+Name: dynamic-recon
+Version: 0.1.0
+Summary: DA3 + SAM3 dynamic/static 3D video reconstruction pipeline
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: imageio
+Requires-Dist: imageio-ffmpeg
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: opencv-python
+Requires-Dist: open3d
+Requires-Dist: pillow
+Requires-Dist: pyyaml
+Requires-Dist: scipy
+Requires-Dist: tqdm
+Requires-Dist: trimesh
+
+# Dynamic Recon
+
+Research-style orchestration project for running Depth Anything 3 (DA3) and SAM 3 on a video, estimating depth and camera motion, tracking dynamic objects, and fusing both signals into static/dynamic 3D outputs.
+
+## Repository layout
+
+```text
+.
+├── configs/
+├── dynamic_recon/
+├── outputs/
+├── scripts/
+├── tests/
+└── third_party/
+```
+
+The intended upstream submodules are:
+
+- `third_party/depth_anything_3` -> `https://github.com/ByteDance-Seed/Depth-Anything-3.git`
+- `third_party/sam3` -> `https://github.com/facebookresearch/sam3.git`
+
+## Quick start
+
+1. Initialize the repository if needed:
+
+```bash
+git init
+./scripts/setup_submodules.sh
+```
+
+2. Create the dedicated conda environment:
+
+```bash
+./scripts/setup_env.sh
+```
+
+3. Authenticate to Hugging Face if required:
+
+```bash
+export HF_TOKEN=...
+huggingface-cli login
+```
+
+4. Download checkpoints:
+
+```bash
+./scripts/download_checkpoints.sh
+```
+
+5. Run the demo:
+
+```bash
+python -m dynamic_recon.run \
+  --video data/input.mp4 \
+  --prompts "person,car,dog" \
+  --output outputs/run01
+```
+
+## Dry run and smoke mode
+
+Use dry-run to validate config and dependency wiring without inference:
+
+```bash
+python -m dynamic_recon.run --video data/input.mp4 --output outputs/run01 --dry-run
+```
+
+Use mock mode when the upstream packages or checkpoints are not installed yet:
+
+```bash
+python -m dynamic_recon.run \
+  --video data/input.mp4 \
+  --output outputs/run01 \
+  --prompts "person,car" \
+  --allow-mock-models
+```
+
+## Output structure
+
+Typical output files:
+
+```text
+outputs/run01/
+  depth/
+    depth.npy
+    conf.npy
+    intrinsics.npy
+    extrinsics.npy
+    metadata.json
+  frames/
+  poses/
+    cameras.txt
+    images.txt
+  sam3/
+    masks/
+    masks.npz
+    prompts.json
+    tracks.json
+  masks_dynamic/
+  masks_static/
+  masks_uncertain/
+  overlays/
+  pointcloud_all_raw.ply
+  pointcloud_static_raw.ply
+  pointcloud_static_fused.ply
+  pointcloud_dynamic_fused.ply
+  summary.json
+  visualization.mp4
+```
+
+## Reproducibility notes
+
+- `scripts/setup_env.sh` attempts a single shared Python 3.12 environment first.
+- If shared installation fails because DA3 and SAM3 diverge, use `scripts/setup_env_da3.sh` and `scripts/setup_env_sam3.sh` and run wrappers in subprocess mode.
+- Checkpoints are stored outside git and should never be committed.
+
+## Known limitations
+
+- DA3 poses may drift on highly dynamic or texture-poor videos.
+- SAM 3 tracks depend on prompt quality and checkpoint availability.
+- 3D dynamic classification is sensitive to pose/depth noise and occlusions.
+- The first version is research-grade, not production-grade.

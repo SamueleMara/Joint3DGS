@@ -1,0 +1,9 @@
+seed: 42
+device: "cpu"
+
+paths:
+  tracks_npz: ""
+  output_dir: "outputs"
+
+segmentation_config: "configs/segmentation.yaml"
+joint_config: "configs/joint.yaml"

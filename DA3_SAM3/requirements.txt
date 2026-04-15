@@ -1,0 +1,15 @@
+imageio
+imageio-ffmpeg
+matplotlib
+numpy
+opencv-python
+open3d
+pillow
+pyyaml
+scipy
+tqdm
+trimesh
+huggingface_hub
+psutil
+pycocotools
+decord

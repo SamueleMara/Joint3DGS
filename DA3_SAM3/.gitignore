@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+outputs/*
+!outputs/.gitkeep
+checkpoints/
+.pytest_cache/
+
+# Project-level data/output/submodule ignores for GitHub push
+input/
+inputs/
+output/
+outputs/
+submodule/
+submodules/

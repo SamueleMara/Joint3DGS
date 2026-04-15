@@ -1,0 +1,35 @@
+window:
+  size: 8
+  stride: 4
+
+tracks:
+  min_valid_ratio: 0.7
+  max_depth: 3.0
+
+features:
+  model_name: "vit_small_patch14_dinov2"
+  num_neighbors: 16
+  spatial_gate_px: 48
+
+loss:
+  lambda_motion: 200.0
+  lambda_smooth: 10.0
+  lambda_rigid: 0.01
+  lambda_pair: 2.0
+  lambda_cog: 1.0
+  lambda_balance: 0.0
+  pair_margin: 0.01
+  pair_lambda_sep: 1.0
+
+optimizer:
+  lr_logits: 1e-2
+  lr_twists: 1e-4
+  iterations: 300
+  grad_clip: 1.0
+  schedule:
+    warmup_iters: 80
+    pair_start_iter: 60
+    cog_start_iter: 120
+
+sampling:
+  num_pairs: 4096

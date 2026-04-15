@@ -1,0 +1,7 @@
+enabled: false
+repo_path: "submodules/depth_anything_3"
+model_dir: ""  # HF repo or local model dir
+model_name: "da3-large"
+process_res: 504
+process_res_method: "upper_bound_resize"
+device: "cuda"

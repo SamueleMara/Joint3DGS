@@ -1,0 +1,9 @@
+sequence:
+  rgb_dir: ""
+  depth_dir: ""
+  intrinsics: ""
+  mask_dir: ""
+  depth_scale: 0.001
+tracks:
+  npz: ""
+  anchor_frame: 0

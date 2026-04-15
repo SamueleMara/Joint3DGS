@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "articulation-rigidity"
+version = "0.1.0"
+description = "Two-stage articulated object segmentation and joint estimation from RGB-D + tracks"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "FreeArtGS++" }]
+dependencies = [
+  "torch",
+  "torchvision",
+  "numpy",
+  "scipy",
+  "opencv-python",
+  "omegaconf",
+  "hydra-core",
+  "tqdm",
+  "matplotlib",
+  "scikit-learn",
+  "einops",
+  "open3d",
+  "trimesh",
+  "timm",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+  "mypy",
+]
+extras = [
+  "faiss-cpu",
+  "pytransform3d",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["articulation*"]

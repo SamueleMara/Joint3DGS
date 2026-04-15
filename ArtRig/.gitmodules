@@ -1,0 +1,9 @@
+[submodule "submodules/depth_anything_3"]
+	path = submodules/depth_anything_3
+	url = https://github.com/ByteDance-Seed/depth-anything-3
+[submodule "submodules/alltracker"]
+	path = submodules/alltracker
+	url = https://github.com/aharley/alltracker
+[submodule "submodules/tapnet"]
+	path = submodules/tapnet
+	url = https://github.com/google-deepmind/tapnet
