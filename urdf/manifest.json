@@ -1,0 +1,78 @@
+{
+  "counts": {
+    "revolute": 8,
+    "prismatic": 2
+  },
+  "objects": [
+    {
+      "name": "USB_100109",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/USB_100109.urdf",
+      "mesh_dir": "meshes/USB_100109",
+      "metadata_path": "metadata/USB_100109.json"
+    },
+    {
+      "name": "blade_103706",
+      "joint_type": "prismatic",
+      "urdf_path": "urdfs/blade_103706.urdf",
+      "mesh_dir": "meshes/blade_103706",
+      "metadata_path": "metadata/blade_103706.json"
+    },
+    {
+      "name": "foldchair_102255",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/foldchair_102255.urdf",
+      "mesh_dir": "meshes/foldchair_102255",
+      "metadata_path": "metadata/foldchair_102255.json"
+    },
+    {
+      "name": "fridge_10905",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/fridge_10905.urdf",
+      "mesh_dir": "meshes/fridge_10905",
+      "metadata_path": "metadata/fridge_10905.json"
+    },
+    {
+      "name": "laptop_10211",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/laptop_10211.urdf",
+      "mesh_dir": "meshes/laptop_10211",
+      "metadata_path": "metadata/laptop_10211.json"
+    },
+    {
+      "name": "oven_101917",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/oven_101917.urdf",
+      "mesh_dir": "meshes/oven_101917",
+      "metadata_path": "metadata/oven_101917.json"
+    },
+    {
+      "name": "scissor_11100",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/scissor_11100.urdf",
+      "mesh_dir": "meshes/scissor_11100",
+      "metadata_path": "metadata/scissor_11100.json"
+    },
+    {
+      "name": "stapler_103111",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/stapler_103111.urdf",
+      "mesh_dir": "meshes/stapler_103111",
+      "metadata_path": "metadata/stapler_103111.json"
+    },
+    {
+      "name": "storage_45135",
+      "joint_type": "prismatic",
+      "urdf_path": "urdfs/storage_45135.urdf",
+      "mesh_dir": "meshes/storage_45135",
+      "metadata_path": "metadata/storage_45135.json"
+    },
+    {
+      "name": "washer_103776",
+      "joint_type": "revolute",
+      "urdf_path": "urdfs/washer_103776.urdf",
+      "mesh_dir": "meshes/washer_103776",
+      "metadata_path": "metadata/washer_103776.json"
+    }
+  ]
+}
