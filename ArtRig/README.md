@@ -110,27 +110,27 @@ python run_pipeline_folder.py \
   --progress --loss-debug
 ```
 
-### 5.3 Run full multiview training on `fr3_joint1`
+### 5.3 Run full multiview training on local `USB_100109`
 
 ```bash
 python run_pipeline_multiview.py \
-  --input-dir /home/samuelemara/Joint3DGS/ArtRig/inputs/fr3_joint1 \
+  --input-dir ../Dataset/USB_100109 \
   --rgb-root rgb \
   --depth-root depth_npy \
   --mask-root mask \
   --camera-pattern 'cam_*' \
   --cameras-json metadata/cameras.json \
   --depth-npy-scale 1.0 \
-  --tracker-config outputs/tracker_cotracker_cpu_ckpt.yaml \
+  --tracker-config configs/tracker.yaml \
   --seg-config configs/segmentation.yaml \
   --joint-config configs/joint.yaml \
-  --out-dir outputs/fr3_joint1_multiview_full \
+  --out-dir outputs/USB_100109_multiview_full \
   --progress --refine-global
 ```
 
 Fused multiview result:
-- `outputs/fr3_joint1_multiview_full/joint_fused_world.json`
-- `outputs/fr3_joint1_multiview_full/joint_fused_world.pt`
+- `outputs/USB_100109_multiview_full/joint_fused_world.json`
+- `outputs/USB_100109_multiview_full/joint_fused_world.pt`
 
 ## 6. Tests
 

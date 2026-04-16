@@ -9,6 +9,7 @@
 # Local archives/checkpoints and heavy generated data
 *.zip
 *.pt
+Dataset/USB_100109/
 ArtRig/inputs/
 ArtRig/outputs/
 DA3_SAM3/inputs/
