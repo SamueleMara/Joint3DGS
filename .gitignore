@@ -12,6 +12,8 @@
 Dataset/USB_100109/
 ArtRig/inputs/
 ArtRig/outputs/
+ArtRig/configs/tracker_usb.yaml
+ArtRig/configs/segmentation_usb.yaml
 DA3_SAM3/inputs/
 DA3_SAM3/outputs/
 Sapien/assets/
