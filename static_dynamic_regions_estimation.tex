@@ -1,0 +1,241 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{bm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{microtype}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+\title{Static/Dynamic Regions Estimation Across Video Frames}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We describe a unified per-camera front-end for estimating static and dynamic image regions across video frames. The framework combines dense point tracking, motion prediction, memory-based temporal association, camera-compensated motion analysis, and bidirectional region fusion. The resulting output is a set of persistent pixel-space tracklets together with a temporally coherent dynamic mask for each frame. The method is a synthesis of ideas drawn from prior work rather than a direct reproduction of a single existing approach: dense point tracking is inspired by TAPIR~\cite{tapir2023}, temporal memory by SAM~2~\cite{sam2_2024}, position-aware propagation by SAMITE~\cite{samite2025}, motion-guided prediction by SORT~\cite{sort2016} and SAMURAI~\cite{samurai2024}, the static-versus-dynamic criterion by MotionGS~\cite{motiongs2024}, and temporal region fusion by DEVA~\cite{deva2023}.
+\end{abstract}
+
+\section{Problem formulation}
+Let $I_t$ denote the image at frame $t$ for one camera, with $t \in \{1,\dots,T\}$. The goal is to estimate, for each frame, a soft dynamic mask $M_t \in [0,1]^{H\times W}$, whose complement $1-M_t$ corresponds to the static region. At the same time, we seek to maintain persistent pixel-space trajectories so that dynamic evidence is accumulated over time rather than inferred independently at each frame.
+
+We represent the temporal state of the image with a set of persistent seed tracks
+\begin{equation}
+\mathcal{T}=\{\tau_i\},
+\qquad
+\tau_i = \{x_{i,t},\, \hat{x}_{i,t|t-1},\, d_{i,t},\, v_{i,t},\, m_{i,t}\}_{t=1}^{T},
+\end{equation}
+where $x_{i,t} \in \mathbb{R}^2$ is the observed image position of seed $i$, $\hat{x}_{i,t|t-1}$ is its predicted location prior to association, $d_{i,t}$ is a descriptor or memory embedding, $v_{i,t} \in [0,1]$ is a visibility/confidence score, and $m_{i,t} \in [0,1]$ is the probability that the seed belongs to a dynamic region.
+
+The main design principle is the following:
+\begin{quote}
+A pixel should be classified as \emph{dynamic} only if its observed motion cannot be explained by camera motion and the static scene hypothesis.
+\end{quote}
+This criterion is directly inspired by the motion decomposition viewpoint of MotionGS~\cite{motiongs2024}.
+
+\section{Dense seed initialization and point tracking}
+We first initialize a dense but manageable set of seeds in each frame using a hybrid strategy: a regular image grid ensures broad coverage, additional seeds are placed on high-gradient or corner-rich locations, and new seeds are spawned in newly visible regions when track density drops below a desired threshold.
+
+Each seed is then tracked through time using a TAPIR-style point tracking backbone~\cite{tapir2023}. TAPIR is particularly relevant here because it treats the primitive as a persistent queried point and performs tracking through a combination of point matching and temporal refinement. In our formulation, the tracking backbone provides a measurement proposal
+\begin{equation}
+ z^{\mathrm{tap}}_{i,t+1}=\mathrm{TrackPoint}(x_{i,t}, I_t, I_{t+1}, d_{i,t}),
+\end{equation}
+which is later combined with a motion prior and temporal memory.
+
+The reason for using a point tracker as the basic temporal primitive is that dynamic/static classification is far more stable when attached to persistent tracks than when estimated independently at the pixel level in each frame.
+
+\section{Prediction before association}
+To avoid full-frame matching at every step and to stabilize temporal linking, each seed maintains a small image-plane motion state,
+\begin{equation}
+ s_{i,t} = [u_{i,t}, v_{i,t}, \dot{u}_{i,t}, \dot{v}_{i,t}]^{\top}.
+\end{equation}
+We propagate this state with a linear motion model,
+\begin{equation}
+ \hat{s}_{i,t+1|t} = A s_{i,t|t},
+ \qquad
+ \hat{x}_{i,t+1|t} = H \hat{s}_{i,t+1|t},
+\end{equation}
+where $A$ is the transition matrix and $H$ extracts the predicted position component.
+
+This predict-then-associate structure is inspired by classical tracking-by-detection, especially SORT~\cite{sort2016}, which uses a Kalman filter before assignment. In the context of SAM-based video tracking, SAMURAI~\cite{samurai2024} reinforces the value of this design by incorporating motion-aware memory selection and motion-guided prediction to improve temporal propagation. In our framework, the motion model is not meant to be a full tracker by itself; instead, it provides a local positional prior that constrains the subsequent association step.
+
+We therefore define a gated search region
+\begin{equation}
+ \Omega_{i,t+1} = \{x \in \mathbb{R}^2 : \|x-\hat{x}_{i,t+1|t}\|_2 < r_i\},
+\end{equation}
+where $r_i$ is an adaptive search radius. Restricting association to $\Omega_{i,t+1}$ reduces drift, suppresses distractors, and allows tracks to survive short periods of ambiguity or occlusion.
+
+\section{Memory-based temporal association}
+Prediction alone is insufficient in the presence of repeated patterns, occlusions, appearance changes, and local ambiguities. For this reason, each seed is also associated with a memory bank
+\begin{equation}
+ \mathcal{M}_i = \{(d_{i,k}, x_{i,k}, q_{i,k})\}_{k\in\mathcal{H}_i},
+\end{equation}
+where $d_{i,k}$ is a stored descriptor, $x_{i,k}$ is the corresponding image location, $q_{i,k}$ is a reliability score, and $\mathcal{H}_i$ indexes selected historical observations.
+
+The use of memory is motivated by SAM~2~\cite{sam2_2024}, whose video mechanism relies on streaming memory to condition current-frame prediction on past frames. However, SAM~2 does not explicitly impose pointwise spatial correspondence for dense pixel tracking. To introduce spatial guidance, we also borrow the position-aware idea of SAMITE~\cite{samite2025}, which augments SAM~2 with a calibrated memory bank and a positional prompt generator.
+
+Inside the gated search region, candidate associations are scored as
+\begin{equation}
+ S_i(x)=
+ \lambda_a\,\mathrm{sim}(d_{i,t}, d_{t+1}(x))
+ +\lambda_m\,\mathrm{MemScore}_i(x)
+ +\lambda_p\,\exp\!\left(-\frac{\|x-\hat{x}_{i,t+1|t}\|_2^2}{2\sigma_i^2}\right),
+\end{equation}
+where the first term measures descriptor similarity, the second aggregates consistency with the seed memory bank, and the third is a positional prior centered at the predicted location. The resulting associated observation is denoted by
+\begin{equation}
+ x^{\mathrm{obs}}_{i,t+1} = \arg\max_{x \in \Omega_{i,t+1}} S_i(x).
+\end{equation}
+
+After association, the seed state can be updated in Kalman-filter form,
+\begin{equation}
+ s_{i,t+1|t+1} = \hat{s}_{i,t+1|t} + K_{t+1}\big(z_{i,t+1}-H\hat{s}_{i,t+1|t}\big),
+\end{equation}
+where $z_{i,t+1}$ is the selected measurement and $K_{t+1}$ is the Kalman gain. Even when the eventual implementation departs from a strict linear-Gaussian filter, this predict-correct abstraction remains a useful conceptual layer for the front-end.
+
+\section{Static-motion explanation and dynamic residual}
+The central step of the framework is to estimate how each tracked seed would move under the \emph{static-scene hypothesis}. Let
+\begin{equation}
+ x^{\mathrm{stat}}_{i,t+1}
+\end{equation}
+be the predicted next position of seed $i$ if the scene were static and only the camera moved. This can be estimated in two ways:
+\begin{enumerate}[leftmargin=1.5em]
+ \item if camera poses and depth are available, by warping the point under ego-motion;
+ \item otherwise, by fitting a robust epipolar geometry model from tracks that are currently most consistent with static motion.
+\end{enumerate}
+
+The dynamic residual is then defined as
+\begin{equation}
+ r_{i,t} = \|x^{\mathrm{obs}}_{i,t+1} - x^{\mathrm{stat}}_{i,t+1}\|_2.
+\end{equation}
+This is the core static-vs-dynamic discriminator. The idea comes directly from MotionGS~\cite{motiongs2024}, which explicitly separates observed motion into camera-induced flow and motion flow. In our image-space setting, a small residual indicates that the observed motion is well explained by the static scene, whereas a large residual suggests genuine dynamic behavior.
+
+\section{Dynamic probability of each track}
+We convert the residual into a soft dynamic probability by combining it with association quality and track confidence,
+\begin{equation}
+ m_{i,t+1}
+ =
+ \sigma\!\Big(
+ \alpha r_{i,t}
+ +\beta(1-v_{i,t+1})
+ +\gamma(1-\mathrm{AssocConf}_{i,t+1})
+ +\delta\,\mathrm{AppearanceChange}_{i,t}
+ \Big),
+\end{equation}
+where $\sigma(\cdot)$ is the logistic sigmoid, and $\alpha,\beta,\gamma,\delta$ are weighting coefficients.
+
+To reduce flicker, we smooth the dynamic probability over time,
+\begin{equation}
+ \bar{m}_{i,t+1} = \rho\,\bar{m}_{i,t} + (1-\rho)\,m_{i,t+1},
+\end{equation}
+and apply hysteresis:
+\begin{equation}
+ \tau_i \text{ is dynamic if } \bar{m}_{i,t} > \tau_{\mathrm{on}} \text{ for } K \text{ consecutive frames},
+\end{equation}
+while a dynamic track returns to static only when $\bar{m}_{i,t} < \tau_{\mathrm{off}}$ with $\tau_{\mathrm{off}} < \tau_{\mathrm{on}}$.
+
+This step is a synthesis rather than a direct copy of a single paper. The residual-motion criterion comes from MotionGS~\cite{motiongs2024}; the confidence-aware formulation is naturally supported by point-tracking and memory-based association; and the temporal persistence reflects the same motivation as temporally coherent video segmentation approaches.
+
+\section{From dynamic tracklets to dynamic regions}
+The previous stages classify \emph{tracks}, not dense image regions. To obtain a per-frame dynamic mask, we first convert dynamic tracklets into a seed mask $M_t^{\mathrm{seed}}$, for example by splatting track confidence into local neighborhoods or by assigning the dynamic label to the superpixels containing highly dynamic tracks.
+
+This initial mask is then refined by temporal propagation and fusion. Here we adopt the main design principle of DEVA~\cite{deva2023}: rather than trusting each frame independently, we fuse dynamic evidence from the current frame with information propagated from temporally adjacent frames. Specifically, we define
+\begin{equation}
+ M_t^{\star} = \mathrm{Fuse}\!\left(
+ M_t^{\mathrm{seed}},
+ \overrightarrow{M}_{t-k\rightarrow t},
+ \overleftarrow{M}_{t+k\rightarrow t}
+ \right),
+\end{equation}
+where $\overrightarrow{M}_{t-k\rightarrow t}$ and $\overleftarrow{M}_{t+k\rightarrow t}$ denote masks propagated forward and backward from neighboring frames. The fusion function may be implemented with confidence-weighted averaging, recurrent refinement, or graph-based region optimization.
+
+The role of DEVA in our framework is therefore not semantic segmentation itself, but the \emph{bidirectional temporal fusion principle} that turns sparse and noisy dynamic evidence into temporally coherent region estimates~\cite{deva2023}.
+
+\section{Unified algorithmic view}
+Putting the pieces together, the per-camera front-end proceeds as follows for each transition $t \rightarrow t+1$:
+\begin{enumerate}[leftmargin=1.5em]
+ \item predict the next image location of every seed using the motion state update (SORT/SAMURAI-inspired)~\cite{sort2016,samurai2024};
+ \item associate the seed locally with TAPIR-style point tracking constrained by a SAM~2/SAMITE-inspired memory-and-position prior~\cite{tapir2023,sam2_2024,samite2025};
+ \item estimate the static-scene motion explanation and compute the camera-compensated residual (MotionGS-inspired)~\cite{motiongs2024};
+ \item update the dynamic probability of each track and decide whether it belongs to a static or dynamic region;
+ \item convert dynamic tracks into region seeds and fuse them over time using bidirectional propagation (DEVA-inspired)~\cite{deva2023};
+ \item update memory banks, visibility scores, and track states for the next frame.
+\end{enumerate}
+
+In compact form, the processing loop is
+\begin{equation}
+ \text{Predict} \rightarrow \text{Associate} \rightarrow \text{Explain by static motion} \rightarrow \text{Score dynamicity} \rightarrow \text{Fuse masks} \rightarrow \text{Update memory}.
+\end{equation}
+
+\section{Discussion}
+The proposed framework is intentionally modular. Different point trackers (e.g., TAPIR or CoTracker-style alternatives), different motion models, and different mask-fusion implementations can be substituted without changing the core logic. The main conceptual contribution of the framework is the integration of five ideas into a single front-end:
+\begin{enumerate}[leftmargin=1.5em]
+ \item persistent pixel-space trajectories as the temporal primitive;
+ \item prediction before association to avoid full-frame search;
+ \item memory-based matching with explicit positional priors;
+ \item dynamicity defined as motion unexplained by the static-scene hypothesis;
+ \item temporally fused region estimation rather than framewise masking.
+\end{enumerate}
+
+This front-end is particularly suitable as the first stage of a later Gaussian-based dynamic scene model, because it provides exactly the two pieces of information needed upstream: persistent image-space tracks and temporally coherent dynamic/static region masks.
+
+\begin{thebibliography}{99}
+
+\bibitem{sort2016}
+Alex Bewley, Zongyuan Ge, Lionel Ott, Fabio Ramos, and Ben Upcroft.
+\newblock Simple Online and Realtime Tracking.
+\newblock In \emph{Proceedings of the IEEE International Conference on Image Processing (ICIP)}, 2016.
+\newblock \url{https://arxiv.org/abs/1602.00763}.
+
+\bibitem{tapir2023}
+Carl Doersch, Yi Yang, Mel Vecerik, Dilara Gokay, Ankush Gupta, Yusuf Aytar, Joao Carreira, and Andrew Zisserman.
+\newblock TAPIR: Tracking Any Point with Per-Frame Initialization and Temporal Refinement.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)}, 2023.
+\newblock \url{https://arxiv.org/abs/2306.08637}.
+
+\bibitem{deva2023}
+Ho Kei Cheng, Seoung Wug Oh, Brian Price, Alexander Schwing, and Jia-Bin Huang.
+\newblock Tracking Anything with Decoupled Video Segmentation.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)}, 2023.
+\newblock \url{https://arxiv.org/abs/2309.03903}.
+
+\bibitem{motiongs2024}
+Ruijie Zhu, Zhihao Liang, Xingyu Chen, Jingyi Yu, and others.
+\newblock Exploring Explicit Motion Guidance for Deformable 3D Gaussian Splatting.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2024.
+\newblock \url{https://proceedings.neurips.cc/paper_files/paper/2024/hash/b88318174aad2cc174a4e05ab6bfad80-Abstract-Conference.html}.
+
+\bibitem{sam2_2024}
+Nikhila Ravi, Valentin Gabeur, Yuan-Ting Hu, Ronghang Hu, Chaitanya Ryali, Tengyu Ma, Haitham Khedr, Roman R\"adle, Chloe Rolland, Laura Gustafson, Eric Mintun, Junting Pan, Kalyan Vasudev Alwala, Nicolas Carion, Chao-Yuan Wu, Ross Girshick, Piotr Doll\'ar, and Christoph Feichtenhofer.
+\newblock SAM 2: Segment Anything in Images and Videos.
+\newblock arXiv preprint arXiv:2408.00714, 2024.
+\newblock \url{https://arxiv.org/abs/2408.00714}.
+
+\bibitem{samurai2024}
+Cheng-Yen Yang, Cheng-Han Lee, Chun-Yi Chiang, Yi-Ting Chen, and Winston H. Hsu.
+\newblock SAMURAI: Adapting Segment Anything Model for Zero-Shot Visual Tracking with Motion-Aware Memory.
+\newblock arXiv preprint arXiv:2411.11922, 2024.
+\newblock \url{https://arxiv.org/abs/2411.11922}.
+
+\bibitem{samite2025}
+Qingze Xu, Fermin Segura, Yue Huang, and Luc Van Gool.
+\newblock SAMITE: Position Prompted SAM2 with Calibrated Memory for Zero-Shot Visual Tracking.
+\newblock arXiv preprint arXiv:2507.21732, 2025.
+\newblock \url{https://arxiv.org/abs/2507.21732}.
+
+\end{thebibliography}
+
+\end{document}

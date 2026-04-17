@@ -1,0 +1,24 @@
+backend: precomputed
+tracks_npz: ""
+anchor_frame: 0
+
+# CoTracker options
+checkpoint: ""
+grid_size: 10
+grid_query_frame: 0
+backward_tracking: false
+offline: true
+v2: false
+window_len: 60
+
+device: cuda
+
+# AllTracker options
+repo_path: ""
+seqlen: null
+inference_iters: 4
+query_frame: 0
+rate: 4
+
+# TAPNet options
+backend_callable: ""

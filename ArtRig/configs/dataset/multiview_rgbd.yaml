@@ -1,0 +1,11 @@
+input_dir: ""
+rgb_dir: "images"
+depth_dir: "depth"
+mask_dir: "fg_mask"
+intrinsics_file: "intrinsics.npy"
+extrinsics_file: "extrinsics.npy"
+cameras_json: "metadata/cameras.json"
+depth_scale: 1.0
+depth_npy_scale: 1.0
+extrinsics_convention: "world_from_camera"
+max_frames: null

@@ -1,0 +1,26 @@
+external:
+  joint_clue:
+    repo_path: ""
+    backend_callable: ""
+
+sampling:
+  num_point_samples: 256
+  strategy: "fps"
+
+models:
+  candidates: ["revolute", "prismatic", "screw"]
+  screw_complexity_penalty: 0.05
+
+loss:
+  lambda_fit: 1.0
+  lambda_temporal: 0.1
+  lambda_axis: 0.05
+  lambda_axis_point: 0.0
+  lambda_pitch: 0.01
+
+optimizer:
+  lr_axis: 1e-2
+  lr_axis_point: 5e-3
+  lr_state: 1e-2
+  lr_pitch: 1e-3
+  iterations: 500

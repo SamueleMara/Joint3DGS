@@ -1,0 +1,268 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{hyperref}
+
+\title{Theory of Fixed-Axis Trajectory Constraint Classification}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Problem Statement}
+
+Given a discrete trajectory
+\[
+p_k \in \mathbb{R}^3, \qquad k=1,\dots,N,
+\]
+the goal is to determine whether the motion of a single tracked point is best explained by one of the following fixed-axis motion models:
+\begin{itemize}
+    \item circular motion around an axis,
+    \item translation parallel to an axis,
+    \item screw motion around an axis.
+\end{itemize}
+
+The method is formulated directly in discrete time from sampled positions. It does not rely on instantaneous velocities or continuous-time kinematics.
+
+\section{Fixed Axis Representation}
+
+A candidate axis is represented as
+\[
+\mathcal{L} = \{c + \lambda u : \lambda \in \mathbb{R}\}, \qquad \|u\| = 1,
+\]
+where:
+\begin{itemize}
+    \item $u \in \mathbb{R}^3$ is the axis direction,
+    \item $c \in \mathbb{R}^3$ is a canonical point on the axis.
+\end{itemize}
+
+The implementation uses the gauge condition
+\[
+u^\top c = 0,
+\]
+which makes $c$ the point on the axis closest to the origin.
+
+\section{Cylinder-Like Common Geometric Model}
+
+All three motion classes are naturally associated with a fixed axis and an approximately constant radial offset. A common fitting objective is therefore
+\[
+E_{\mathrm{cyl}}(u,c,r)
+=
+\sum_{k=1}^{N}
+\left(
+\left\|
+(I - uu^\top)(p_k - c)
+\right\|
+- r
+\right)^2,
+\]
+where $r$ is the distance from the trajectory to the axis.
+
+Here,
+\[
+(I - uu^\top)(p_k - c)
+\]
+is the component of the point displacement orthogonal to the axis direction $u$.
+
+In the implementation, this objective is minimized numerically with nonlinear least squares.
+
+\section{Axis-Aligned Orthonormal Frame}
+
+Once an axis direction $u$ is known, an orthonormal frame $(e_1,e_2,u)$ is constructed such that
+\[
+e_1^\top u = 0, \qquad e_2^\top u = 0, \qquad e_2 = u \times e_1.
+\]
+
+Define
+\[
+B = [e_1 \; e_2 \; u].
+\]
+This matrix maps the trajectory into a coordinate frame aligned with the candidate axis.
+
+\section{Cylindrical Coordinates}
+
+For each sample $p_k$, define
+\[
+x_k = B^\top (p_k - c),
+\qquad
+x_k =
+\begin{bmatrix}
+x_k^{(1)} \\
+x_k^{(2)} \\
+x_k^{(3)}
+\end{bmatrix}.
+\]
+
+The cylindrical coordinates are then
+\[
+\rho_k = \sqrt{(x_k^{(1)})^2 + (x_k^{(2)})^2},
+\]
+\[
+\phi_k = \operatorname{atan2}\left(x_k^{(2)}, x_k^{(1)}\right),
+\]
+\[
+h_k = x_k^{(3)}.
+\]
+
+The angular sequence $\phi_k$ is unwrapped over sample order.
+
+\section{Motion Models}
+
+\subsection{Circular Motion}
+
+For ideal circular motion around the axis,
+\[
+\rho_k \approx r, \qquad h_k \approx h_0,
+\]
+while the angle $\phi_k$ varies.
+
+The residual is
+\[
+E_{\mathrm{circ}}
+=
+\sum_{k=1}^{N}
+\left[
+(\rho_k - r)^2 + (h_k - h_0)^2
+\right].
+\]
+
+In the implementation:
+\begin{itemize}
+    \item $r$ is estimated as the mean of $\rho_k$,
+    \item $h_0$ is estimated as the mean of $h_k$.
+\end{itemize}
+
+The fitted three-dimensional circle center is
+\[
+p_{\mathrm{center}} = c + h_0 u.
+\]
+
+This is not the same as the reported axis point $c$.
+
+\subsection{Translation Parallel to the Axis}
+
+For ideal translation parallel to the axis,
+\[
+\rho_k \approx r, \qquad \phi_k \approx \phi_0,
+\]
+while the axial coordinate $h_k$ varies.
+
+The residual is
+\[
+E_{\mathrm{trans}}
+=
+\sum_{k=1}^{N}
+\left[
+(\rho_k - r)^2 + d_{\angle}(\phi_k,\phi_0)^2
+\right],
+\]
+where $d_{\angle}$ denotes wrapped angular distance.
+
+An important identifiability issue appears here: for a single tracked point undergoing pure translation, the direction of the axis is observable, but the exact parallel axis location is not unique. Therefore, the translation model should be interpreted mainly through axis direction and displacement, not through a unique recovered axis point.
+
+\subsection{Screw Motion}
+
+For ideal screw motion,
+\[
+\rho_k \approx r, \qquad h_k \approx h_0 + \kappa \phi_k,
+\]
+where $\kappa$ is the pitch per radian.
+
+The residual is
+\[
+E_{\mathrm{screw}}
+=
+\sum_{k=1}^{N}
+\left[
+(\rho_k - r)^2 + (h_k - h_0 - \kappa \phi_k)^2
+\right].
+\]
+
+In the implementation:
+\begin{itemize}
+    \item $r$ is estimated as the mean of $\rho_k$,
+    \item $(h_0,\kappa)$ are estimated by linear least squares.
+\end{itemize}
+
+\section{Practical Estimation Strategy}
+
+The implementation uses a pragmatic multi-hypothesis strategy rather than a single monolithic global optimization.
+
+\subsection{Circle Hypothesis}
+
+The axis direction is initialized from the PCA direction with the smallest variance. This is motivated by the fact that a circular trajectory approximately lies in a plane, so the axis is close to the normal of that plane.
+
+\subsection{Translation Hypothesis}
+
+The axis direction is initialized from the PCA direction with the largest variance, since translation of a single point produces a dominant line direction.
+
+\subsection{Screw Hypothesis}
+
+For screw motion, a general nonlinear cylinder fit is used to estimate axis direction, axis point, and radius.
+
+\section{Classification}
+
+The three model residuals
+\[
+E_{\mathrm{circ}}, \qquad E_{\mathrm{trans}}, \qquad E_{\mathrm{screw}}
+\]
+are computed and compared. The predicted class is the model with the smallest residual.
+
+The code also reports:
+\begin{itemize}
+    \item normalized residuals,
+    \item a confidence score based on the gap between the best and second-best residuals,
+    \item motion-extent summaries from the fitted cylindrical coordinates.
+\end{itemize}
+
+\section{Estimated Motion Extents}
+
+After selecting the best-fitting model, the fitted cylindrical coordinates are used to summarize the motion.
+
+\subsection{Circle}
+
+For circular motion, the code reports:
+\begin{itemize}
+    \item estimated start angle,
+    \item estimated end angle,
+    \item estimated angular span.
+\end{itemize}
+
+\subsection{Translation}
+
+For translation, the code reports:
+\begin{itemize}
+    \item axial displacement.
+\end{itemize}
+
+\subsection{Screw}
+
+For screw motion, the code reports:
+\begin{itemize}
+    \item angular span,
+    \item axial displacement.
+\end{itemize}
+
+\section{Limitations}
+
+\begin{itemize}
+    \item Short arcs can be ambiguous and may resemble line segments or short helix fragments.
+    \item Very small radius values lead to ill-conditioned axis estimation.
+    \item For pure translation of a single tracked point, the parallel axis position is not uniquely identifiable.
+    \item The method is a readable prototype designed for clarity rather than maximum estimation sophistication.
+\end{itemize}
+
+\section{Relation to the Implementation}
+
+The theory described here is implemented in:
+\begin{itemize}
+    \item \texttt{trajectory\_constraint\_fit.py},
+    \item \texttt{simulate\_trajectories.py},
+    \item \texttt{demo.py}.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,82 @@
+device: cuda
+dtype: float32
+seed: 0
+
+video:
+  resize_long_edge: 640
+  max_frames: null
+  stride: 1
+
+da3:
+  enabled: true
+  checkpoint: null
+  model_name: depth-anything/DA3-LARGE-1.1
+  batch_size: 1
+  window_size: 24
+  stride: 8
+  mixed_precision: true
+  use_ray_pose: true
+  ref_view_strategy: middle
+  process_res: 448
+  process_res_method: upper_bound_resize
+  oom_retry_process_res: [392, 336, 280]
+  sequence_chunk_size: 12
+  sequence_chunk_overlap: 2
+  allow_mock: false
+
+geometry:
+  pair_offsets: [-4, -2, -1, 1, 2, 4]
+  alpha_3d: 1.2
+  alpha_flow: 1.1
+  alpha_depth: 0.7
+  alpha_rgb: 0.2
+  alpha_cycle: 0.7
+  alpha_vis: 1.0
+  seed_threshold_high: 0.9
+  temporal_smoothing_alpha: 0.3
+  static_threshold_low: 0.15
+  flow_consistency_thresh: 1.5
+  occlusion_abs_tol: 0.04
+  occlusion_rel_tol: 0.08
+
+sam3:
+  enabled: true
+  checkpoint: null
+  model_id: facebook/sam3.1
+  version: sam3.1
+  resize_long_edge: 448
+  gpus_to_use: null
+  offload_video_to_cpu: true
+  offload_state_to_cpu: true
+  async_loading_frames: false
+  max_regions_per_frame: 12
+  max_prompt_frames: 2
+  points_per_region: 4
+  negative_ring: 7
+  allow_mock: false
+
+fusion:
+  enabled: true
+  base_channels: 48
+  lr: 0.0005
+  batch_size: 2
+  epochs_per_outer_iter: 6
+  w_sam: 1.0
+  w_geo: 1.25
+  w_static_seed: 0.75
+  w_dynamic_seed: 0.75
+  w_tv: 0.03
+  w_temp: 0.2
+
+pose_refine:
+  enabled: true
+  lr: 0.00005
+  steps: 200
+  lambda_depth: 0.5
+  lambda_rgb: 0.1
+  keyframe_only: false
+  keyframe_stride: 4
+
+pipeline:
+  num_outer_iters: 4
+  save_debug_every_iter: true
