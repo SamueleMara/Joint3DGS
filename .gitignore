@@ -10,6 +10,7 @@
 *.zip
 *.pt
 Dataset/USB_100109/
+Dataset/preparation_all/
 ArtRig/inputs/
 ArtRig/outputs/
 ArtRig/configs/tracker_usb.yaml
@@ -18,3 +19,4 @@ DA3_SAM3/inputs/
 DA3_SAM3/outputs/
 Sapien/assets/
 Sapien/output/
+Dataset/
